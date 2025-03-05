@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Project Execution Guide
 .env File (Sensitive Data – Do Not Commit to GitHub)
 Use the following template for your .env file. (Replace the placeholders with your actual values.)
@@ -204,3 +205,7 @@ sql
 
 
 \d users
+=======
+# Basic-Authentication-System
+Node Basic Authentication A Node.js-based basic authentication system that uses Express, PostgreSQL, and JWT. The project automates table creation and is containerized using Docker Compose, making it easy to deploy locally or on AWS. Ideal for learning secure user registration and login implementation.
+>>>>>>> 326f90e (Initial commit)
