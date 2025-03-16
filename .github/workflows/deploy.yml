@@ -6,11 +6,6 @@ on:
       - develop
       - master  # Ensuring master branch triggers deployment
 
-env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
-  AWS_ECR_REGISTRY: ${{ secrets.AWS_ECR_REGISTRY }}
-  AWS_ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
-
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
@@ -27,12 +22,13 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_ID }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Login to ECR
-        run: aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ECR_REGISTRY }}
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v6
@@ -59,5 +55,5 @@ jobs:
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ECR_REGISTRY }}
             docker pull ${{ secrets.AWS_ECR_REGISTRY }}/${{ secrets.AWS_ECR_REPOSITORY }}:${IMAGE_TAG}
             docker compose down --remove-orphans
-            docker compose up -d
+            docker compose up -d --force-recreate
             docker image prune -af
