@@ -51,7 +51,8 @@ jobs:
           script: |
             set -ex
             export IMAGE_TAG=${{ github.sha }}
-            cd ~/api
+            # Changed directory to match your project folder on the EC2 instance
+            cd ~/Basic-Authentication-System
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ECR_REGISTRY }}
             docker pull ${{ secrets.AWS_ECR_REGISTRY }}/${{ secrets.AWS_ECR_REPOSITORY }}:${IMAGE_TAG}
             docker compose down --remove-orphans
