@@ -1,6 +1,9 @@
+version: "3.8"
+
 services:
   app:
-    build: .
+    # Changed: Pulling the image from AWS ECR instead of building locally
+    image: "${AWS_ECR_REGISTRY}/${AWS_ECR_REPOSITORY}:latest"
     container_name: auth_app
     restart: always
     env_file: .env
