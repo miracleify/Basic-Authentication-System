@@ -51,10 +51,24 @@ jobs:
           script: |
             set -ex
             export IMAGE_TAG=${{ github.sha }}
-            # Changed directory to match your project folder on the EC2 instance
+            # Navigate to the project directory on EC2
             cd ~/Basic-Authentication-System
+            # 1. Create the .env file using GitHub Secrets
+            cat <<EOF > .env
+            DB_USER=${{ secrets.DB_USER }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            DB_HOST=${{ secrets.DB_HOST }}
+            DB_NAME=${{ secrets.DB_NAME }}
+            DB_PORT=${{ secrets.DB_PORT }}
+            PORT=${{ secrets.APP_PORT }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            EOF
+            # 2. Log in to ECR
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ECR_REGISTRY }}
+            # 3. Pull the built image
             docker pull ${{ secrets.AWS_ECR_REGISTRY }}/${{ secrets.AWS_ECR_REPOSITORY }}:${IMAGE_TAG}
+            # 4. Redeploy using Docker Compose
             docker compose down --remove-orphans
             docker compose up -d --force-recreate
+            # 5. Clean up unused images
             docker image prune -af
