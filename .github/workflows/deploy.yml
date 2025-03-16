@@ -42,10 +42,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.2.2  
-         github.ref == 'refs/heads/master'
-        #if: github.ref == 'refs/heads/develop'
-        
+        uses: appleboy/ssh-action@master
+        if: github.ref == 'refs/heads/develop'
         with:
           host: ${{ secrets.SSH_STAGING_HOST }}
           username: ${{ secrets.ALT_SSH_USER }}
