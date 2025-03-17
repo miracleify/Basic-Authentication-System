@@ -3,8 +3,8 @@ name: Deployment to EC2 server
 on:
   push:
     branches:
-      - develop
-      - master  # Ensuring master branch triggers deployment
+      - develop  # Ensures deployment from the develop branch
+      - master   # Ensures deployment from the master branch
 
 concurrency:
   group: ${{ github.head_ref || github.run_id }}
@@ -14,61 +14,72 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout Code  # Fetch the latest code from the repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 1  # Fetch only the latest commit
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials  # AWS CLI Configuration
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}  # Must match GitHub Secrets
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  # Must match GitHub Secrets
+          aws-region: ${{ secrets.AWS_REGION }}  # AWS Region where services are deployed
 
-      - name: Login to Amazon ECR
+      - name: Login to Amazon ECR  # AWS Elastic Container Registry (ECR) Authentication
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and Push Docker Image
+      - name: Build and Push Docker Image  # Build and push the Docker image to ECR
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
+          push: true  # Push the built image to AWS ECR
           tags: ${{ secrets.AWS_ECR_REGISTRY }}/${{ secrets.AWS_ECR_REPOSITORY }}:${{ github.sha }}
 
   deploy_to_staging:
-    needs: [build]
+    needs: [build]  # Ensures this job runs only after the build job is complete
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to EC2
+      - name: Deploy to EC2  # SSH into EC2 and deploy the new container
         uses: appleboy/ssh-action@master
-        if: github.ref == 'refs/heads/develop'
+        if: github.ref == 'refs/heads/develop'  # Ensures deployment only from the develop branch
         with:
-          host: ${{ secrets.SSH_STAGING_HOST }}
-          username: ${{ secrets.ALT_SSH_USER }}
-          key: ${{ secrets.SSH_STAGING_SECRET }}
+          host: ${{ secrets.SSH_STAGING_HOST }}  # Must match GitHub Secrets
+          username: ${{ secrets.ALT_SSH_USER }}  # Must match GitHub Secrets
+          key: ${{ secrets.SSH_STAGING_SECRET }}  # Must match GitHub Secrets
           script: |
             set -ex
-            export IMAGE_TAG=${{ github.sha }}
+            export IMAGE_TAG=${{ github.sha }}  # Set image tag for deployment
+            
             # Navigate to the project directory on EC2
             cd ~/Basic-Authentication-System
+            
             # 1. Create the .env file using GitHub Secrets
             cat <<EOF > .env
             DB_USER=${{ secrets.DB_USER }}
-            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-            DB_HOST=${{ secrets.DB_HOST }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}  # Can also use DB_SECRET if needed
+            DB_HOST=${{ secrets.DB_HOST }}  # Ensure this is set correctly (e.g., auth_db)
             DB_NAME=${{ secrets.DB_NAME }}
             DB_PORT=${{ secrets.DB_PORT }}
             PORT=${{ secrets.APP_PORT }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
             EOF
-            # 2. Log in to ECR
+            
+            # 2. Log in to AWS ECR
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ECR_REGISTRY }}
-            # 3. Pull the built image
+            
+            # 3. Pull the latest Docker image
             docker pull ${{ secrets.AWS_ECR_REGISTRY }}/${{ secrets.AWS_ECR_REPOSITORY }}:${IMAGE_TAG}
-            # 4. Redeploy using Docker Compose
+            
+            # 4. Restart the Docker service (Ensure Docker is installed beforehand)
+            sudo systemctl restart docker
+            
+            # 5. Stop and remove existing containers
             docker compose down --remove-orphans
+            
+            # 6. Start new containers with the latest image
             docker compose up -d --force-recreate
-            # 5. Clean up unused images
+            
+            # 7. Clean up unused Docker images to free space
             docker image prune -af
